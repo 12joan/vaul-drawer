@@ -81,9 +81,9 @@ function Root({
   });
   const [isDragging, setIsDragging] = React.useState(false);
   const overlayRef = React.useRef<HTMLDivElement>(null);
-  const dragStartTime = React.useRef<Date | null>(null);
-  const dragEndTime = React.useRef<Date | null>(null);
-  const lastTimeDragPrevented = React.useRef<Date | null>(null);
+  const dragStartTime = React.useRef<number | null>(null);
+  const dragEndTime = React.useRef<number | null>(null);
+  const lastTimeDragPrevented = React.useRef<number | null>(null);
   const pointerStartY = React.useRef(0);
   const drawerRef = React.useRef<HTMLDivElement>(null);
   const initialViewportHeight = React.useRef(0);
@@ -99,7 +99,7 @@ function Root({
   function onPress(event: React.PointerEvent<HTMLDivElement>) {
     if (!dismissible) return;
     setIsDragging(true);
-    dragStartTime.current = new Date();
+    dragStartTime.current = performance.now();
 
     // Ensure we maintain correct pointer capture even when going outside of the drawer
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
@@ -109,7 +109,7 @@ function Root({
 
   function shouldDrag(el: EventTarget, isDraggingDown: boolean) {
     let element = el as HTMLElement;
-    const date = new Date();
+    const currentTime = performance.now();
     const highlightedText = window.getSelection().toString();
 
     // Don't drag if there's highlighted text
@@ -118,8 +118,8 @@ function Root({
     }
 
     // Disallow dragging if drawer was scrolled within last second
-    if (lastTimeDragPrevented.current && date.getTime() - lastTimeDragPrevented.current.getTime() < 1000) {
-      lastTimeDragPrevented.current = new Date();
+    if (lastTimeDragPrevented.current && currentTime - lastTimeDragPrevented.current < 1000) {
+      lastTimeDragPrevented.current = currentTime;
       return false;
     }
 
@@ -130,14 +130,14 @@ function Root({
         if (element.role === 'dialog') return true;
 
         if (element.scrollTop > 0) {
-          lastTimeDragPrevented.current = new Date();
+          lastTimeDragPrevented.current = currentTime;
 
           // The element is scrollable and not scrolled to the top, so don't drag
           return false;
         }
 
         if (isDraggingDown && element !== document.body) {
-          lastTimeDragPrevented.current = new Date();
+          lastTimeDragPrevented.current = currentTime;
           // Element is scrolled to the top, but we are dragging down so we should allow scrolling
           return false;
         }
@@ -299,7 +299,7 @@ function Root({
 
   function onRelease(event: React.PointerEvent<HTMLDivElement>) {
     setIsDragging(false);
-    dragEndTime.current = new Date();
+    dragEndTime.current = performance.now();
     const swipeAmount = drawerRef.current
       ? getComputedStyle(drawerRef.current).getPropertyValue('--swipe-amount').slice(0, -2)
       : null;
@@ -310,7 +310,7 @@ function Root({
 
     const y = event.clientY;
 
-    const timeTaken = dragEndTime.current.getTime() - dragStartTime.current.getTime();
+    const timeTaken = dragEndTime.current - dragStartTime.current;
     const distMoved = pointerStartY.current - y;
     const velocity = Math.abs(distMoved) / timeTaken;
 
